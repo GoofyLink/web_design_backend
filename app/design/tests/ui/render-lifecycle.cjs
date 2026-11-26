@@ -13,6 +13,8 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   let server, provider, adminToken, calls = 0, failNext = true;
+  let holdResponse = false, lastImage = '';
+  const pendingResponses = [];
   try {
     const renderPage = await browser.newPage();
     await renderPage.goto('http://localhost:5174/');
@@ -20,6 +22,11 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
     server = http.createServer(async (req, res) => {
       try {
         calls++;
+        if (holdResponse) {
+          req.resume();
+          pendingResponses.push(res);
+          return;
+        }
         assert.equal(req.headers.authorization, 'Bearer local-render-test-key');
         assert.match(req.headers['idempotency-key'], /^design-job-\d+-item-\d+$/);
         if (failNext) { failNext = false; res.writeHead(400); res.end('intentional first-attempt failure'); return; }
@@ -39,6 +46,7 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
           try { await c.loadFromJSON(content.document); c.renderAll(); return c.toDataURL({ format, quality: 1, multiplier: 1 }).split(',')[1]; }
           finally { await c.dispose(); }
         }, payload);
+        lastImage = imageBase64;
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ imageBase64 }));
       } catch (e) { res.writeHead(500); res.end(String(e)); }
     });
@@ -86,6 +94,15 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
       }
       const done = await waitStatus(id, 'succeeded'); assert.equal(done.completedItems, 1); assert.equal(done.results.length, 1);
       await page.getByRole('button', { name: '刷新任务', exact: true }).click();
+      await page.locator('.job-card').filter({ hasText: '任务 ' + id }).getByRole('button', { name: '详情', exact: true }).click();
+      await page.getByRole('region', { name: '任务详情' }).getByText(done.results[0].name, { exact: true }).waitFor();
+      await page.getByRole('button', { name: '关闭详情', exact: true }).click();
+      await adminPage.goto('http://localhost:18890/design-jobs');
+      const detailRow = adminPage.getByRole('row').filter({ has: adminPage.getByRole('cell', { name: id, exact: true }) });
+      await detailRow.getByRole('button', { name: /详.*情/, exact: true }).click();
+      await adminPage.getByText('任务详情与执行记录', { exact: true }).waitFor();
+      assert.equal(await adminPage.locator('.ant-modal:visible .ant-table-tbody tr[data-row-key]').count(), 2);
+      await adminPage.locator('.ant-modal:visible .ant-modal-close').click();
       const event = page.waitForEvent('download'); await page.locator('.job-card').filter({ hasText: '任务 ' + id }).getByRole('button', { name: '下载 ZIP' }).click();
       const download = await event; const zip = await JSZip.loadAsync(await fs.readFile(await download.path()));
       const files = Object.values(zip.files).filter(f => !f.dir); assert.equal(files.length, 1); assert(files[0].name.endsWith('.' + format));
@@ -93,10 +110,48 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
       const decoded = await renderPage.evaluate(async ({ bytes, format }) => { const blob = await (await fetch(`data:image/${format};base64,${bytes}`)).blob(); const bitmap = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bitmap.width; c.height = bitmap.height; const x = c.getContext('2d'); x.drawImage(bitmap, 0, 0); const result = { width: bitmap.width, height: bitmap.height, pixel: [...x.getImageData(319, 199, 1, 1).data] }; bitmap.close(); return result; }, { bytes, format });
       assert.equal(decoded.width, 320); assert.equal(decoded.height, 200); [18, 52, 86].forEach((v, i) => assert(Math.abs(decoded.pixel[i] - v) <= 3));
       const attempts = await api('/api/admin/v1/jobs/' + id + '/attempts', adminToken); assert.equal(attempts.length, 2);
+      await page.locator('.job-card').filter({ hasText: '任务 ' + id }).getByRole('button', { name: '删除记录', exact: true }).click();
+      await page.locator('.job-card').filter({ hasText: '任务 ' + id }).waitFor({ state: 'hidden' });
+      assert(!(await api('/api/v1/jobs', token)).items.some(job => job.id === id));
+      assert.equal((await api('/api/v1/assets/' + done.results[0].id, token)).id, done.results[0].id);
     }
     const quota = await api('/api/v1/task-quota', token); assert.equal(quota.reservedUnits, 0); assert.equal(quota.consumedUnits, 2); assert.equal(calls, 4);
+    holdResponse = true;
+    for (const actor of ['user', 'admin']) {
+      await page.getByRole('checkbox', { name: /真实渲染作品/ }).check();
+      await page.getByRole('button', { name: '提交批量导出', exact: true }).click();
+      await page.getByText('批量导出已提交，可在下方刷新查看进度').waitFor();
+      const id = (await api('/api/v1/jobs', token)).items[0].id;
+      await waitStatus(id, 'running');
+      for (let i = 0; i < 30 && !pendingResponses.length; i++) await new Promise(r => setTimeout(r, 100));
+      assert.equal(pendingResponses.length, 1, 'renderer must hold a real running request');
+      assert.equal((await api('/api/v1/task-quota', token)).reservedUnits, 1);
+      if (actor === 'user') {
+        await page.getByRole('button', { name: '刷新任务', exact: true }).click();
+        await page.locator('.job-card').filter({ hasText: '任务 ' + id }).getByRole('button', { name: '取消任务', exact: true }).click();
+        await page.locator('.job-card').filter({ hasText: '任务 ' + id }).getByText('已取消', { exact: true }).waitFor();
+      } else {
+        await adminPage.goto('http://localhost:18890/design-jobs');
+        const row = adminPage.getByRole('row').filter({ has: adminPage.getByRole('cell', { name: id, exact: true }) });
+        await row.getByRole('button', { name: /取.*消/, exact: true }).click();
+        await adminPage.locator('.ant-modal-confirm-btns button').last().click();
+        await row.getByText('已取消', { exact: true }).waitFor();
+      }
+      const response = pendingResponses.shift();
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ imageBase64: lastImage }));
+      await new Promise(r => setTimeout(r, 1500));
+      const cancelled = await api('/api/v1/jobs/' + id, token);
+      assert.equal(cancelled.status, 'cancelled'); assert.equal(cancelled.results?.length || 0, 0);
+      const after = await api('/api/v1/task-quota', token);
+      assert.equal(after.reservedUnits, 0); assert.equal(after.consumedUnits, 2);
+      const attempts = await api('/api/admin/v1/jobs/' + id + '/attempts', adminToken);
+      assert.equal(attempts[0].status, 'cancelled');
+    }
+    console.log('PASS user/admin cancel real running renderer tasks, release quota, retain cancelled state after late renderer responses');
     console.log('PASS real browser+API+worker+local Fabric renderer: failed/retry, PNG/JPEG, image/font resources, output assets, ZIP download/decode/dimensions/pixels, attempts, quota consumption. No AI calls.');
   } finally {
+    pendingResponses.forEach(response => response.destroy());
     if (provider && adminToken) { const { id, ...config } = provider; await api('/api/admin/v1/providers/' + id, adminToken, { ...config, apiKey: '', status: 'disabled' }, 'PUT').catch(e => console.error('cleanup:', e)); }
     if (server) await new Promise(resolve => server.close(resolve));
     await browser.close();

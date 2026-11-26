@@ -25,6 +25,59 @@
 
 ## 逐接口验收
 
+### 第十五批：任务详情、执行记录与输出保留
+
+- 扩展并重新执行 `render-lifecycle.cjs` 通过：前台任务详情列出真实输出文件名，后台详情展示两条执行记录（首次失败及重试成功）；下载PNG/JPEG ZIP后删除任务记录，任务列表消失但输出素材仍可读取。
+- 原有真实Fabric画布渲染、前后台失败重试、ZIP解包与图片尺寸/像素校验、额度扣减与预留释放继续通过。渲染器仅为本地隔离测试服务，不调用AI。
+- 更新11个任务相关接口行。任务取消的两端页面仍待单独验证，不将删除和重试视作取消证据。
+
+### 第十四批：管理员角色、专题与内部账号额度
+
+- `security-topic-create.cjs` 归档并适配角色搜索后复测通过：页面新建角色/分配权限、新建管理员、受限管理员分类只读及角色页拒绝访问、创建上线专题与前台详情展示。
+- `security-topic-lifecycle.cjs` 当前环境复测通过：角色修改即时生效、已分配角色删除保护、重分配角色、管理员启停、删除闲置角色、专题下线与删除。
+- `user-create-quota.cjs` 新增纯真实API流程：后台页面添加内部用户、设置20单位额度、重新打开读取已保存额度；该用户登录前台，账户页显示20可用/20总额，存储及额度API一致。未使用任务模拟响应。
+- 本批更新22个接口证据行。旧临时脚本的部分记录仍只代表历史阶段，最终以逐接口表与归档测试为准。
+
+### 第十三批：个人资料、会话、作品编辑及运营页面
+
+- 将临时脚本整理为 `account-operations.cjs` 和 `workspace-editor-lifecycle.cjs` 并在当前源码上复测通过：前台资料保存/刷新、改密后重新登录；后台统计/导出记录/审计页等待真实请求200且业务code=0后检查页面，无错误提示。
+- 作品移动文件夹、复制、文档保存、历史详情/恢复、封面更新、导出校验与结果上报、浏览器下载事件通过。此脚本只验证导出触发与事件，不额外宣称校验了导出文件像素。
+- `user-session-lifecycle.cjs` 通过：将标签页访问令牌换成无效值后，真实API返回401，前台使用真实Cookie刷新并成功重试个人资料；退出清除本地令牌、旧访问令牌和刷新Cookie均失效，再打开账户页显示登录。没有修改正式库。
+- 本轮更新17个接口证据行，剩余接口仍按实际证据推进。
+
+### 第十二批：模板完整生命周期和真实AI配置保存
+
+- `template-lifecycle.cjs` 已通过（原进程94987结果已确认）：浏览器新建分类/模板与上传封面、发布、预览、搜索、登录套用、收藏/取消收藏；修改草稿不影响已发布内容，再发布形成第二条修订，旧修订内容不可变且可预览；下架后公共详情404、前台搜索空态，后台删除后列表消失。
+- `provider-config-lifecycle.cjs` 使用真实隔离API通过创建停用的图片服务配置、修改模型、密钥空值保持、显式清除、只返回hasKey且不回显密钥。使用无效域名与测试假密钥，未提交任务、未请求外部AI。没有将模拟接口验证作为真实保存证据。
+- 补齐上述模板15项、尺寸管理2项和服务商3项接口行的证据。其余待核验项保持未完成。
+
+### 第十一批：画布尺寸增删改与权限刷新
+
+- 修复后台尺寸页使用旧登录权限缓存导致所有编辑入口隐藏的问题：加载和重新加载时从 `/auth/codes` 更新权限，再读取尺寸配置。不绕过后端权限，真正只读账号显示授权提示。
+- 页面保留新增、行内修改名称/分类/宽高、启停、排序、确认移除、按版本统一保存，并增加未保存提醒。
+- `presets-lifecycle.cjs` 已通过：模拟登录时缺少canvas:write的旧缓存，进入页面后通过真实权限接口恢复编辑入口；新增、改宽度、停用、启用、移除、保存及重新加载持久化、公共接口同步生效。测试仅操作隔离库新增项，不修改正式库配置。后台类型检查通过。
+
+### 第十批：管理员会话与个人中心
+
+- 修复后台自动刷新：基础客户端返回原始HTTP响应，令牌位于 `response.data.data.accessToken`；原实现误读为 `response.data.accessToken`，导致刷新200后重试失败并退出。刷新方法现在校验业务code和token并返回明确的登录结果。
+- `admin-session-lifecycle.cjs` 通过：临时管理员浏览器登录、模拟一次访问令牌过期401后调用真实刷新接口并成功重试、个人资料保存/刷新、修改密码使旧会话与旧密码失效、新密码登录返回原页面、账户菜单退出及刷新cookie失效。
+- 只模拟触发刷新所需的首次401，刷新接口、Cookie轮换、重试以及其余业务操作全部使用隔离真实API。没有等待15分钟自然过期，不将本脚本描述为自然过期测试。
+- 顶部移除示例通知、固定邮箱、Pro标签及无关框架外链；账户菜单显示真实账号和“内部管理员”，保留个人中心、平台接口文档及退出登录。后台类型检查通过。
+
+### 第九批：文件夹、素材与分类生命周期
+
+- `folder-asset-lifecycle.cjs` 真实隔离DB和浏览器通过：前台文件夹新建/改名/分类列表/删除，删除文件夹后作品仍保留。文件夹成员关系由API准备，不将其计作本脚本覆盖了移动作品按钮。
+- 后台公共图片上传、搜索、详情及签名图片加载、引用查询、停用/启用、删除通过；被作品引用时停用和删除均显示服务端拒绝原因，素材保持启用；永久删除测试作品后可删除素材。
+- 后台分类新建、改名并停用、删除通过；公共分类API同步隐藏停用分类。此脚本没有验证前台分类按钮的视觉展示，也未覆盖字体上传，相关证据需单独核验。
+- 逐接口表只标记本轮实际通过的UI动作；仍需完成其余接口的证据审计。
+
+### 第八批：用户管理与回收站
+
+- `user-workspace-lifecycle.cjs` 在隔离API与真实浏览器通过：后台详情、编辑账号/姓名、重置密码撤销旧会话及旧密码、停用/启用；前台新密码登录、作品重命名、删除、恢复、永久删除后API返回404。
+- 后台用户详情弹窗使用 `GET /users/{id}`；编辑与重置前重新取详情。后台类型检查通过。
+- 修正测试的标签页定位为 `role=tab`。复测发现前台5174服务已停止，确认端口无监听后重启，再完整执行通过。
+- 本批仅更新有直接证据的接口行；测试以API准备账号和作品，不代表对应创建页面已在此脚本验收。其余接口仍需逐项核验，不表示总体完成。
+
 ### 第七批：真实渲染链路验收
 
 - `app/design/tests/ui/render-lifecycle.cjs` 已通过：前台提交→Go worker→本地浏览器 Fabric 渲染服务→输出素材入库→前台 ZIP 下载。测试渲染真实画布（含图片/字体），PNG 与 JPEG 均检查ZIP文件数量、后缀、解码尺寸320×200和背景像素值，非固定占位图。
@@ -63,129 +116,129 @@
 
 | 方法 | 接口 | 功能 | 当前证据 |
 |---|---|---|---|
-| GET | `/api/admin/v1/admins` | 账户分页列表 | 待核验/补齐 |
-| POST | `/api/admin/v1/admins` | 创建管理员 | 待核验/补齐 |
-| GET | `/api/admin/v1/admins/{id}` | 账户详情（管理员包含 roleIds） | 待核验/补齐 |
-| PUT | `/api/admin/v1/admins/{id}/roles` | 分配管理员角色 | 待核验/补齐 |
-| PATCH | `/api/admin/v1/admins/{id}/status` | 启停账户并撤销会话 | 待核验/补齐 |
-| GET | `/api/admin/v1/assets` | 素材分页；scope=mine/public，kind=image/font | 待核验/补齐 |
-| POST | `/api/admin/v1/assets` | 上传图片或管理员公共字体 | 待核验/补齐 |
-| DELETE | `/api/admin/v1/assets/{id}` | 删除未引用素材 | 待核验/补齐 |
-| GET | `/api/admin/v1/assets/{id}` | 素材元数据 | 待核验/补齐 |
-| POST | `/api/admin/v1/assets/{id}/access-url` | 获取 60 秒文件访问链接 | 待核验/补齐 |
-| GET | `/api/admin/v1/assets/{id}/references` | 查询公共素材引用 | 待核验/补齐 |
-| PATCH | `/api/admin/v1/assets/{id}/status` | 启停未引用公共素材 | 待核验/补齐 |
-| GET | `/api/admin/v1/audit-logs` | 审计日志分页 | 待核验/补齐 |
-| GET | `/api/admin/v1/auth/codes` | 当前管理员权限码 | 待核验/补齐 |
-| POST | `/api/admin/v1/auth/login` | admin 登录 | 待核验/补齐 |
-| POST | `/api/admin/v1/auth/logout` | admin 退出会话 | 待核验/补齐 |
-| POST | `/api/admin/v1/auth/refresh` | admin 刷新会话 | 待核验/补齐 |
-| GET | `/api/admin/v1/canvas-presets` | 画布推荐尺寸配置 | 待核验/补齐 |
-| PUT | `/api/admin/v1/canvas-presets` | 按版本保存画布尺寸配置（数组顺序即展示顺序） | 待核验/补齐 |
-| GET | `/api/admin/v1/categories` | 分类列表 | 待核验/补齐 |
-| POST | `/api/admin/v1/categories` | 创建或修改分类 | 待核验/补齐 |
-| DELETE | `/api/admin/v1/categories/{id}` | 删除未被引用分类 | 待核验/补齐 |
-| PUT | `/api/admin/v1/categories/{id}` | 创建或修改分类 | 待核验/补齐 |
-| GET | `/api/admin/v1/export-events` | 导出结果及异常分页 | 待核验/补齐 |
-| GET | `/api/admin/v1/jobs` | 任务分页；管理员仅元信息 | 待核验/补齐 |
-| GET | `/api/admin/v1/jobs/{id}` | 任务详情；用户含输出素材，管理员不含私有内容 | 待核验/补齐 |
-| GET | `/api/admin/v1/jobs/{id}/attempts` | 任务执行与重试记录 | 待核验/补齐 |
+| GET | `/api/admin/v1/admins` | 账户分页列表 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| POST | `/api/admin/v1/admins` | 创建管理员 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| GET | `/api/admin/v1/admins/{id}` | 账户详情（管理员包含 roleIds） | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| PUT | `/api/admin/v1/admins/{id}/roles` | 分配管理员角色 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| PATCH | `/api/admin/v1/admins/{id}/status` | 启停账户并撤销会话 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| GET | `/api/admin/v1/assets` | 素材分页；scope=mine/public，kind=image/font | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| POST | `/api/admin/v1/assets` | 上传图片或管理员公共字体 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| DELETE | `/api/admin/v1/assets/{id}` | 删除未引用素材 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| GET | `/api/admin/v1/assets/{id}` | 素材元数据 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| POST | `/api/admin/v1/assets/{id}/access-url` | 获取 60 秒文件访问链接 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| GET | `/api/admin/v1/assets/{id}/references` | 查询公共素材引用 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| PATCH | `/api/admin/v1/assets/{id}/status` | 启停未引用公共素材 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| GET | `/api/admin/v1/audit-logs` | 审计日志分页 | 真实浏览器与隔离API通过：account-operations.cjs |
+| GET | `/api/admin/v1/auth/codes` | 当前管理员权限码 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| POST | `/api/admin/v1/auth/login` | admin 登录 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| POST | `/api/admin/v1/auth/logout` | admin 退出会话 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| POST | `/api/admin/v1/auth/refresh` | admin 刷新会话 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| GET | `/api/admin/v1/canvas-presets` | 画布推荐尺寸配置 | 真实浏览器与隔离API通过：presets-lifecycle.cjs |
+| PUT | `/api/admin/v1/canvas-presets` | 按版本保存画布尺寸配置（数组顺序即展示顺序） | 真实浏览器与隔离API通过：presets-lifecycle.cjs |
+| GET | `/api/admin/v1/categories` | 分类列表 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| POST | `/api/admin/v1/categories` | 创建或修改分类 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| DELETE | `/api/admin/v1/categories/{id}` | 删除未被引用分类 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| PUT | `/api/admin/v1/categories/{id}` | 创建或修改分类 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| GET | `/api/admin/v1/export-events` | 导出结果及异常分页 | 真实浏览器与隔离API通过：account-operations.cjs |
+| GET | `/api/admin/v1/jobs` | 任务分页；管理员仅元信息 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/admin/v1/jobs/{id}` | 任务详情；用户含输出素材，管理员不含私有内容 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/admin/v1/jobs/{id}/attempts` | 任务执行与重试记录 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
 | POST | `/api/admin/v1/jobs/{id}/cancel` | 任务操作：cancel | 待核验/补齐 |
-| POST | `/api/admin/v1/jobs/{id}/retry` | 任务操作：retry | 待核验/补齐 |
-| GET | `/api/admin/v1/me` | 当前账户 | 待核验/补齐 |
-| PATCH | `/api/admin/v1/me` | 修改个人资料 | 待核验/补齐 |
-| PUT | `/api/admin/v1/me/password` | 修改密码并撤销全部会话 | 待核验/补齐 |
-| GET | `/api/admin/v1/permissions` | 全部可分配权限 | 待核验/补齐 |
-| GET | `/api/admin/v1/providers` | 服务商配置；密钥仅返回 hasKey | 待核验/补齐 |
-| POST | `/api/admin/v1/providers` | 创建服务商配置；apiKey 只写并加密存储 | 待核验/补齐 |
-| PUT | `/api/admin/v1/providers/{id}` | 按版本更新服务商及启停；空密钥保持原值 | 待核验/补齐 |
-| GET | `/api/admin/v1/roles` | 角色列表及权限 | 待核验/补齐 |
-| POST | `/api/admin/v1/roles` | 保存角色与权限 | 待核验/补齐 |
-| DELETE | `/api/admin/v1/roles/{id}` | 删除未使用角色 | 待核验/补齐 |
-| PUT | `/api/admin/v1/roles/{id}` | 保存角色与权限 | 待核验/补齐 |
-| GET | `/api/admin/v1/statistics` | 全局数量与区间导出统计 | 待核验/补齐 |
-| GET | `/api/admin/v1/templates` | 模板搜索与分页 | 待核验/补齐 |
-| POST | `/api/admin/v1/templates` | 创建或更新模板草稿 | 待核验/补齐 |
-| DELETE | `/api/admin/v1/templates/{id}` | 模板状态操作 delete | 待核验/补齐 |
-| GET | `/api/admin/v1/templates/{id}` | 模板详情 | 待核验/补齐 |
-| PUT | `/api/admin/v1/templates/{id}` | 创建或更新模板草稿 | 待核验/补齐 |
-| POST | `/api/admin/v1/templates/{id}/offline` | 模板状态操作 offline | 待核验/补齐 |
-| GET | `/api/admin/v1/templates/{id}/preview` | 读取草稿和已发布文档供编辑器预览 | 待核验/补齐 |
-| POST | `/api/admin/v1/templates/{id}/publish` | 模板状态操作 publish | 待核验/补齐 |
-| GET | `/api/admin/v1/templates/{id}/revisions` | 模板发布修订列表 | 待核验/补齐 |
-| GET | `/api/admin/v1/templates/{id}/revisions/{revisionId}` | 不可变模板修订详情 | 待核验/补齐 |
-| GET | `/api/admin/v1/topics` | 专题列表；slot=home/featured | 待核验/补齐 |
-| POST | `/api/admin/v1/topics` | 创建专题推荐 | 待核验/补齐 |
-| DELETE | `/api/admin/v1/topics/{id}` | 删除已下线专题 | 待核验/补齐 |
-| GET | `/api/admin/v1/topics/{id}` | 专题详情与排序模板 | 待核验/补齐 |
-| PUT | `/api/admin/v1/topics/{id}` | 按版本修改专题与上下线 | 待核验/补齐 |
-| GET | `/api/admin/v1/user/info` | Vben 当前管理员资料 | 待核验/补齐 |
-| GET | `/api/admin/v1/users` | 账户分页列表 | 待核验/补齐 |
-| POST | `/api/admin/v1/users` | 管理员创建内部用户 | 待核验/补齐 |
-| GET | `/api/admin/v1/users/{id}` | 账户详情（管理员包含 roleIds） | 待核验/补齐 |
-| PATCH | `/api/admin/v1/users/{id}` | 编辑内部用户账号和姓名 | 待核验/补齐 |
-| PUT | `/api/admin/v1/users/{id}/password` | 重置内部用户密码并撤销全部会话 | 待核验/补齐 |
-| PATCH | `/api/admin/v1/users/{id}/status` | 启停账户并撤销会话 | 待核验/补齐 |
-| GET | `/api/admin/v1/users/{id}/task-quota` | 用户任务额度 | 待核验/补齐 |
-| PUT | `/api/admin/v1/users/{id}/task-quota` | 分配累计任务额度；不含会员支付 | 待核验/补齐 |
+| POST | `/api/admin/v1/jobs/{id}/retry` | 任务操作：retry | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/admin/v1/me` | 当前账户 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| PATCH | `/api/admin/v1/me` | 修改个人资料 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| PUT | `/api/admin/v1/me/password` | 修改密码并撤销全部会话 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| GET | `/api/admin/v1/permissions` | 全部可分配权限 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| GET | `/api/admin/v1/providers` | 服务商配置；密钥仅返回 hasKey | 真实浏览器与隔离API通过：provider-config-lifecycle.cjs |
+| POST | `/api/admin/v1/providers` | 创建服务商配置；apiKey 只写并加密存储 | 真实浏览器与隔离API通过：provider-config-lifecycle.cjs |
+| PUT | `/api/admin/v1/providers/{id}` | 按版本更新服务商及启停；空密钥保持原值 | 真实浏览器与隔离API通过：provider-config-lifecycle.cjs |
+| GET | `/api/admin/v1/roles` | 角色列表及权限 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| POST | `/api/admin/v1/roles` | 保存角色与权限 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| DELETE | `/api/admin/v1/roles/{id}` | 删除未使用角色 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| PUT | `/api/admin/v1/roles/{id}` | 保存角色与权限 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| GET | `/api/admin/v1/statistics` | 全局数量与区间导出统计 | 真实浏览器与隔离API通过：account-operations.cjs |
+| GET | `/api/admin/v1/templates` | 模板搜索与分页 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| POST | `/api/admin/v1/templates` | 创建或更新模板草稿 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| DELETE | `/api/admin/v1/templates/{id}` | 模板状态操作 delete | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/admin/v1/templates/{id}` | 模板详情 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| PUT | `/api/admin/v1/templates/{id}` | 创建或更新模板草稿 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| POST | `/api/admin/v1/templates/{id}/offline` | 模板状态操作 offline | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/admin/v1/templates/{id}/preview` | 读取草稿和已发布文档供编辑器预览 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| POST | `/api/admin/v1/templates/{id}/publish` | 模板状态操作 publish | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/admin/v1/templates/{id}/revisions` | 模板发布修订列表 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/admin/v1/templates/{id}/revisions/{revisionId}` | 不可变模板修订详情 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/admin/v1/topics` | 专题列表；slot=home/featured | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| POST | `/api/admin/v1/topics` | 创建专题推荐 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| DELETE | `/api/admin/v1/topics/{id}` | 删除已下线专题 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| GET | `/api/admin/v1/topics/{id}` | 专题详情与排序模板 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| PUT | `/api/admin/v1/topics/{id}` | 按版本修改专题与上下线 | 真实浏览器与隔离API通过：security-topic-lifecycle.cjs |
+| GET | `/api/admin/v1/user/info` | Vben 当前管理员资料 | 真实浏览器与隔离API通过：admin-session-lifecycle.cjs（刷新过期触发为模拟401） |
+| GET | `/api/admin/v1/users` | 账户分页列表 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| POST | `/api/admin/v1/users` | 管理员创建内部用户 | 真实浏览器与隔离API通过：user-create-quota.cjs |
+| GET | `/api/admin/v1/users/{id}` | 账户详情（管理员包含 roleIds） | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| PATCH | `/api/admin/v1/users/{id}` | 编辑内部用户账号和姓名 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| PUT | `/api/admin/v1/users/{id}/password` | 重置内部用户密码并撤销全部会话 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| PATCH | `/api/admin/v1/users/{id}/status` | 启停账户并撤销会话 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| GET | `/api/admin/v1/users/{id}/task-quota` | 用户任务额度 | 真实浏览器与隔离API通过：user-create-quota.cjs |
+| PUT | `/api/admin/v1/users/{id}/task-quota` | 分配累计任务额度；不含会员支付 | 真实浏览器与隔离API通过：user-create-quota.cjs |
 | GET | `/api/v1/assets` | 素材分页；scope=mine/public，kind=image/font | 待核验/补齐 |
 | POST | `/api/v1/assets` | 上传图片或管理员公共字体 | 待核验/补齐 |
 | DELETE | `/api/v1/assets/{id}` | 删除未引用素材 | 待核验/补齐 |
 | GET | `/api/v1/assets/{id}` | 素材元数据 | 待核验/补齐 |
 | POST | `/api/v1/assets/{id}/access-url` | 获取 60 秒文件访问链接 | 待核验/补齐 |
 | GET | `/api/v1/assets/{id}/content` | 文件内容；公共资源匿名，私有资源凭 Bearer 或 ticket | 待核验/补齐 |
-| POST | `/api/v1/auth/login` | user 登录 | 待核验/补齐 |
-| POST | `/api/v1/auth/logout` | user 退出会话 | 待核验/补齐 |
-| POST | `/api/v1/auth/refresh` | user 刷新会话 | 待核验/补齐 |
+| POST | `/api/v1/auth/login` | user 登录 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| POST | `/api/v1/auth/logout` | user 退出会话 | 真实浏览器与隔离API通过：user-session-lifecycle.cjs |
+| POST | `/api/v1/auth/refresh` | user 刷新会话 | 真实浏览器与隔离API通过：user-session-lifecycle.cjs |
 | POST | `/api/v1/auth/register` | 用户注册 | 按内部使用要求不提供入口 |
 | GET | `/api/v1/canvas-presets` | 启用的推荐画布尺寸 | 待核验/补齐 |
 | GET | `/api/v1/categories` | 分类列表 | 待核验/补齐 |
-| GET | `/api/v1/designs` | 作品或回收站分页 | 待核验/补齐 |
+| GET | `/api/v1/designs` | 作品或回收站分页 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
 | POST | `/api/v1/designs` | 创建空白作品；必填 Idempotency-Key | 待核验/补齐 |
-| DELETE | `/api/v1/designs/{id}` | 作品回收站操作：delete | 待核验/补齐 |
+| DELETE | `/api/v1/designs/{id}` | 作品回收站操作：delete | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
 | GET | `/api/v1/designs/{id}` | 作品文档和版本 | 待核验/补齐 |
-| PATCH | `/api/v1/designs/{id}` | 按版本重命名 | 待核验/补齐 |
-| POST | `/api/v1/designs/{id}/copy` | 复制或套用为独立作品；必填 Idempotency-Key | 待核验/补齐 |
-| POST | `/api/v1/designs/{id}/cover` | 按版本替换上传成功的封面 | 待核验/补齐 |
-| PUT | `/api/v1/designs/{id}/document` | 按版本保存完整文档；冲突 409 | 待核验/补齐 |
-| POST | `/api/v1/designs/{id}/export-check` | 校验导出版本、资源和像素 | 待核验/补齐 |
-| PUT | `/api/v1/designs/{id}/folder` | 移动作品；folderId 空字符串表示移出 | 待核验/补齐 |
-| GET | `/api/v1/designs/{id}/history` | 最近 20 次文档历史 | 待核验/补齐 |
-| GET | `/api/v1/designs/{id}/history/{historyId}` | 历史文档详情 | 待核验/补齐 |
-| POST | `/api/v1/designs/{id}/history/{historyId}/restore` | 历史内容恢复为新版本 | 待核验/补齐 |
-| POST | `/api/v1/designs/{id}/restore` | 作品回收站操作：restore | 待核验/补齐 |
-| POST | `/api/v1/export-events` | 幂等记录浏览器导出结果 | 待核验/补齐 |
+| PATCH | `/api/v1/designs/{id}` | 按版本重命名 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| POST | `/api/v1/designs/{id}/copy` | 复制或套用为独立作品；必填 Idempotency-Key | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| POST | `/api/v1/designs/{id}/cover` | 按版本替换上传成功的封面 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| PUT | `/api/v1/designs/{id}/document` | 按版本保存完整文档；冲突 409 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| POST | `/api/v1/designs/{id}/export-check` | 校验导出版本、资源和像素 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| PUT | `/api/v1/designs/{id}/folder` | 移动作品；folderId 空字符串表示移出 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| GET | `/api/v1/designs/{id}/history` | 最近 20 次文档历史 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| GET | `/api/v1/designs/{id}/history/{historyId}` | 历史文档详情 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| POST | `/api/v1/designs/{id}/history/{historyId}/restore` | 历史内容恢复为新版本 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
+| POST | `/api/v1/designs/{id}/restore` | 作品回收站操作：restore | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| POST | `/api/v1/export-events` | 幂等记录浏览器导出结果 | 真实浏览器与隔离API通过：workspace-editor-lifecycle.cjs |
 | GET | `/api/v1/favorites` | 当前仍可见的收藏模板 | 待核验/补齐 |
-| DELETE | `/api/v1/favorites/{id}` | 收藏或取消收藏模板 | 待核验/补齐 |
-| PUT | `/api/v1/favorites/{id}` | 收藏或取消收藏模板 | 待核验/补齐 |
-| GET | `/api/v1/folders` | 我的文件夹（最多 200 个） | 待核验/补齐 |
-| POST | `/api/v1/folders` | 创建文件夹 | 待核验/补齐 |
-| DELETE | `/api/v1/folders/{id}` | 删除文件夹，保留作品 | 待核验/补齐 |
-| PUT | `/api/v1/folders/{id}` | 按版本修改文件夹 | 待核验/补齐 |
-| GET | `/api/v1/folders/{id}/designs` | 文件夹作品分页 | 待核验/补齐 |
+| DELETE | `/api/v1/favorites/{id}` | 收藏或取消收藏模板 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| PUT | `/api/v1/favorites/{id}` | 收藏或取消收藏模板 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/v1/folders` | 我的文件夹（最多 200 个） | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| POST | `/api/v1/folders` | 创建文件夹 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| DELETE | `/api/v1/folders/{id}` | 删除文件夹，保留作品 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| PUT | `/api/v1/folders/{id}` | 按版本修改文件夹 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
+| GET | `/api/v1/folders/{id}/designs` | 文件夹作品分页 | 真实浏览器与隔离DB通过：folder-asset-lifecycle.cjs（2026-11-26） |
 | GET | `/api/v1/fonts` | 可用公共字体 | EditorResources.vue；design-editor-resources.cjs 真实列表/应用/保存重开通过 |
 | GET | `/api/v1/home` | 首页分类与最新模板 | 待核验/补齐 |
-| GET | `/api/v1/job-capabilities` | 已启用服务商能力（无密钥与地址） | 待核验/补齐 |
-| GET | `/api/v1/jobs` | 任务分页；管理员仅元信息 | 待核验/补齐 |
-| POST | `/api/v1/jobs` | 创建 AI 图片或批量导出任务；需要幂等键 | 待核验/补齐 |
-| DELETE | `/api/v1/jobs/{id}` | 删除已结束任务并释放快照；输出保留在素材库 | 待核验/补齐 |
-| GET | `/api/v1/jobs/{id}` | 任务详情；用户含输出素材，管理员不含私有内容 | 待核验/补齐 |
+| GET | `/api/v1/job-capabilities` | 已启用服务商能力（无密钥与地址） | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/v1/jobs` | 任务分页；管理员仅元信息 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| POST | `/api/v1/jobs` | 创建 AI 图片或批量导出任务；需要幂等键 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| DELETE | `/api/v1/jobs/{id}` | 删除已结束任务并释放快照；输出保留在素材库 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/v1/jobs/{id}` | 任务详情；用户含输出素材，管理员不含私有内容 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
 | POST | `/api/v1/jobs/{id}/cancel` | 任务操作：cancel | 待核验/补齐 |
-| GET | `/api/v1/jobs/{id}/download` | 下载成功批量任务的 ZIP 文件 | 待核验/补齐 |
-| POST | `/api/v1/jobs/{id}/retry` | 任务操作：retry | 待核验/补齐 |
-| GET | `/api/v1/me` | 当前账户 | 待核验/补齐 |
-| PATCH | `/api/v1/me` | 修改个人资料 | 待核验/补齐 |
-| PUT | `/api/v1/me/password` | 修改密码并撤销全部会话 | 待核验/补齐 |
+| GET | `/api/v1/jobs/{id}/download` | 下载成功批量任务的 ZIP 文件 | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| POST | `/api/v1/jobs/{id}/retry` | 任务操作：retry | 真实浏览器/API/渲染执行器通过：render-lifecycle.cjs（仅批量导出，不调用AI） |
+| GET | `/api/v1/me` | 当前账户 | 真实浏览器与隔离API通过：account-operations.cjs |
+| PATCH | `/api/v1/me` | 修改个人资料 | 真实浏览器与隔离API通过：account-operations.cjs |
+| PUT | `/api/v1/me/password` | 修改密码并撤销全部会话 | 真实浏览器与隔离API通过：account-operations.cjs |
 | GET | `/api/v1/seed-assets/poster.svg` | 自制示例模板封面 | 待核验/补齐 |
-| GET | `/api/v1/storage` | 我的存储额度 | 待核验/补齐 |
-| GET | `/api/v1/task-quota` | 我的内部任务额度 | 待核验/补齐 |
-| GET | `/api/v1/templates` | 模板搜索与分页 | 待核验/补齐 |
-| GET | `/api/v1/templates/{id}` | 模板详情 | 待核验/补齐 |
-| POST | `/api/v1/templates/{id}/use` | 复制或套用为独立作品；必填 Idempotency-Key | 待核验/补齐 |
-| GET | `/api/v1/topics` | 专题列表；slot=home/featured | 待核验/补齐 |
-| GET | `/api/v1/topics/{id}` | 专题详情与排序模板 | 待核验/补齐 |
-| GET | `/api/v1/trash` | 作品或回收站分页 | 待核验/补齐 |
-| DELETE | `/api/v1/trash/{id}` | 作品回收站操作：purge | 待核验/补齐 |
+| GET | `/api/v1/storage` | 我的存储额度 | 真实浏览器与隔离API通过：user-create-quota.cjs |
+| GET | `/api/v1/task-quota` | 我的内部任务额度 | 真实浏览器与隔离API通过：user-create-quota.cjs |
+| GET | `/api/v1/templates` | 模板搜索与分页 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/v1/templates/{id}` | 模板详情 | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| POST | `/api/v1/templates/{id}/use` | 复制或套用为独立作品；必填 Idempotency-Key | 真实浏览器与隔离API通过：template-lifecycle.cjs |
+| GET | `/api/v1/topics` | 专题列表；slot=home/featured | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| GET | `/api/v1/topics/{id}` | 专题详情与排序模板 | 真实浏览器与隔离API通过：security-topic-create.cjs |
+| GET | `/api/v1/trash` | 作品或回收站分页 | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
+| DELETE | `/api/v1/trash/{id}` | 作品回收站操作：purge | 真实浏览器与隔离DB通过：user-workspace-lifecycle.cjs（2026-11-26） |
 | GET | `/healthz` | 进程存活 | 基础设施接口，纳入运行检查 |
 | GET | `/readyz` | 数据库和存储就绪 | 基础设施接口，纳入运行检查 |
 
