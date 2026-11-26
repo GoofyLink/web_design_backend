@@ -1,0 +1,73 @@
+// @Title user.api
+// @Description 用户中心协议源定义；字段说明在此维护，再生成对应 Go 类型。
+// @Author Codex ，仅补充教学注释。
+// @Update Codex 2026-10-16 ，仅补充注释。
+syntax = "v1"
+
+info(
+	title: "用户实例"
+	desc: "用户实例"
+)
+
+// User 对外传输的用户基本信息，不包含密码摘要。
+type User {
+	Id       int64  `json:"id"` // 本地用户主键；在 UserAuth 中表示授权记录主键。
+	Mobile   string `json:"mobile"` // 手机号，平台账号登录时使用。
+	Nickname string `json:"nickname"` // 用户昵称。
+	Sex      int64  `json:"sex"` // 性别标记，含义以当前数据库定义为准。
+	Avatar   string `json:"avatar"` // 用户头像地址。
+	Info     string `json:"info"` // 用户个人介绍。
+}
+
+type (
+	// RegisterReq 注册输入， API 根据登录方式补充授权类型与授权键。
+	RegisterReq {
+		Mobile   string `json:"mobile"` // 手机号，平台账号登录时使用。
+		Password string `json:"password"` // 请求中的原始密码；不要输出到日志或响应。
+	}
+	// RegisterResp 注册成功后签发的登录信息。
+	RegisterResp {
+		AccessToken  string `json:"accessToken"` // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+		AccessExpire int64  `json:"accessExpire"` // 过期时刻的 Unix 秒时间戳，不是有效时长。
+		RefreshAfter int64  `json:"refreshAfter"` // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+	}
+)
+
+type (
+	// LoginReq 登录凭据，具体校验由 RPC 业务逻辑执行。
+	LoginReq {
+		Mobile   string `json:"mobile"` // 手机号，平台账号登录时使用。
+		Password string `json:"password"` // 请求中的原始密码；不要输出到日志或响应。
+	}
+	// LoginResp 登录成功后签发的登录信息。
+	LoginResp {
+		AccessToken  string `json:"accessToken"` // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+		AccessExpire int64  `json:"accessExpire"` // 过期时刻的 Unix 秒时间戳，不是有效时长。
+		RefreshAfter int64  `json:"refreshAfter"` // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+	}
+)
+
+type (
+	// WXMiniAuthReq 微信小程序授权输入，不直接提供本地用户主键。
+	WXMiniAuthReq {
+		Code          string `json:"code"` // 前端从微信取得的临时登录凭据。
+		IV            string `json:"iv"` // 微信加密数据的初始向量。
+		EncryptedData string `json:"encryptedData"` // 需要使用微信会话密钥解密的数据。
+	}
+	// WXMiniAuthResp 微信身份关联成功后返回的登录信息。
+	WXMiniAuthResp {
+		AccessToken  string `json:"accessToken"` // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+		AccessExpire int64  `json:"accessExpire"` // 过期时刻的 Unix 秒时间戳，不是有效时长。
+		RefreshAfter int64  `json:"refreshAfter"` // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+	}
+)
+
+type (
+	// UserInfoReq 空请求； API 从已验证的 JWT 上下文读取用户主键。
+	UserInfoReq {
+	}
+	// UserInfoResp 用户详情响应，由统一 HTTP 结果层包装。
+	UserInfoResp {
+		UserInfo User `json:"userInfo"` // 当前登录用户的公开信息，不包含密码。
+	}
+)

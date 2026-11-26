@@ -1,0 +1,151 @@
+@base = http://localhost:8888
+@origin = http://localhost:5173
+@userToken = 替换为用户登录返回的accessToken
+@adminToken = 替换为管理员登录返回的accessToken
+@categoryId = 1
+@templateId = 1
+@designId = 1
+
+### 存活
+GET {{base}}/healthz
+
+### 就绪
+GET {{base}}/readyz
+
+### 注册测试用户（自行替换密码，不用于生产）
+POST {{base}}/api/v1/auth/register
+Content-Type: application/json
+
+{"username":"demo_user","password":"Replace-this-test-password"}
+
+### 用户登录；客户端需保存 Set-Cookie
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"username":"demo_user","password":"Replace-this-test-password"}
+
+### 用户资料
+GET {{base}}/api/v1/me
+Authorization: Bearer {{userToken}}
+
+### 刷新（需携带登录返回的 design_user_refresh Cookie）
+POST {{base}}/api/v1/auth/refresh
+Origin: {{origin}}
+
+### 管理员登录，账号由 admin create 初始化
+POST {{base}}/api/admin/v1/auth/login
+Content-Type: application/json
+
+{"username":"你的管理员账号","password":"你的管理员密码"}
+
+### 权限码
+GET {{base}}/api/admin/v1/auth/codes
+Authorization: Bearer {{adminToken}}
+
+### 创建分类
+POST {{base}}/api/admin/v1/categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"海报","sort":10,"status":"active"}
+
+### 创建模板；另见 template-create.example.json
+POST {{base}}/api/admin/v1/templates
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"content":{"title":"自制示例海报","categoryId":"{{categoryId}}","tags":["示例"],"width":600,"height":800,"cover":"/api/v1/seed-assets/poster.svg","engine":"fabric","engineVersion":"6.0.0","schemaVersion":1,"document":{"objects":[{"type":"rect","width":600,"height":800,"fill":"#e7eef8"},{"type":"text","left":100,"top":300,"text":"DESIGN DEMO","fontFamily":"sans-serif","fontSize":40,"fill":"#3568d4"}]}}}
+
+### 发布；version 替换为当前版本
+POST {{base}}/api/admin/v1/templates/{{templateId}}/publish
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":1}
+
+### 公开搜索
+GET {{base}}/api/v1/templates?keyword=示例&ratio=portrait&page=1&pageSize=20
+
+### 管理端详情，查看草稿和发布快照
+GET {{base}}/api/admin/v1/templates/{{templateId}}
+Authorization: Bearer {{adminToken}}
+
+### 下架；刚发布后版本为 2
+POST {{base}}/api/admin/v1/templates/{{templateId}}/offline
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":2}
+
+### 退出；Cookie 或 Bearer 指定当前会话
+POST {{base}}/api/v1/auth/logout
+Origin: {{origin}}
+Authorization: Bearer {{userToken}}
+
+### B3 上传用户图片（将路径改为实际文件）
+POST {{base}}/api/v1/assets
+Authorization: Bearer {{userToken}}
+Content-Type: multipart/form-data; boundary=DesignUpload
+
+--DesignUpload
+Content-Disposition: form-data; name="kind"
+
+image
+--DesignUpload
+Content-Disposition: form-data; name="file"; filename="poster.png"
+Content-Type: image/png
+
+< ./poster.png
+--DesignUpload--
+
+### B4 创建空白作品；新操作更换幂等键
+POST {{base}}/api/v1/designs
+Authorization: Bearer {{userToken}}
+Idempotency-Key: blank-design-example-001
+Content-Type: application/json
+
+{"title":"我的第一张海报","content":{"width":600,"height":800,"engine":"fabric","engineVersion":"6.7.1","schemaVersion":1,"document":{"version":"6.7.1","objects":[]}}}
+
+### 作品详情：替换 designId
+GET {{base}}/api/v1/designs/{{designId}}
+Authorization: Bearer {{userToken}}
+
+### 保存（使用最新版本）
+PUT {{base}}/api/v1/designs/{{designId}}/document
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{"version":1,"content":{"width":600,"height":800,"engine":"fabric","engineVersion":"6.7.1","schemaVersion":1,"document":{"objects":[{"type":"Textbox","text":"你好，设计","fontFamily":"sans-serif","fontSize":32}]}}}
+
+### 回收站
+GET {{base}}/api/v1/trash
+Authorization: Bearer {{userToken}}
+
+### B5 导出检查：version 替换为作品当前版本
+POST {{base}}/api/v1/designs/{{designId}}/export-check
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{"version":1,"format":"png","scale":1}
+
+### B6 创建文件夹
+POST {{base}}/api/v1/folders
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{"name":"公司海报"}
+
+### B6 读取作品历史
+GET {{base}}/api/v1/designs/{{designId}}/history
+Authorization: Bearer {{userToken}}
+
+### B8 保存禁用的图片服务配置（不会调用外部服务）
+POST {{base}}/api/admin/v1/providers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"待配置图片服务","kind":"image","endpoint":"https://your-provider.example/v1/images/generations","model":"待选择模型","status":"disabled"}
+
+### B8 当前能力，未配置时 providers=[]
+GET {{base}}/api/v1/job-capabilities
+Authorization: Bearer {{userToken}}

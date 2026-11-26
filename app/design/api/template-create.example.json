@@ -1,0 +1,19 @@
+{
+  "content": {
+    "title": "自制示例海报",
+    "categoryId": "1",
+    "tags": ["示例", "海报"],
+    "width": 600,
+    "height": 800,
+    "cover": "/api/v1/seed-assets/poster.svg",
+    "engine": "fabric",
+    "engineVersion": "6.0.0",
+    "schemaVersion": 1,
+    "document": {
+      "objects": [
+        {"type": "rect", "width": 600, "height": 800, "fill": "#e7eef8"},
+        {"type": "text", "left": 100, "top": 300, "text": "DESIGN DEMO", "fontFamily": "sans-serif", "fontSize": 40, "fill": "#3568d4"}
+      ]
+    }
+  }
+}

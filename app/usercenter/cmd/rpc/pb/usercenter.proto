@@ -1,0 +1,108 @@
+// @Title usercenter.proto
+// @Description 用户中心协议源定义；字段说明在此维护，再生成对应 Go 类型。
+// @Author Codex ，仅补充教学注释。
+// @Update Codex 2026-10-16 ，仅补充注释。
+syntax = "proto3";
+
+option go_package = "./pb";
+
+package pb;
+// User 对外传输的用户基本信息，不包含密码摘要。
+message User {
+  int64 id = 1; // 本地用户主键；在 UserAuth 中表示授权记录主键。
+  string mobile = 2; // 手机号，平台账号登录时使用。
+  string nickname =3; // 用户昵称。
+  int64  sex = 4; // 性别标记，含义以当前数据库定义为准。
+  string avatar = 5; // 用户头像地址。
+  string info = 6; // 用户个人介绍。
+}
+
+// UserAuth 本地用户与登录平台之间的授权关系。
+message UserAuth {
+  int64  id = 1; // 本地用户主键；在 UserAuth 中表示授权记录主键。
+  int64  userId = 2; // 关联的本地用户主键。
+  string authType = 3; // 登录平台类型，例如 system 或 wxMini 。
+  string authKey = 4; // 平台唯一标识； system 使用手机号， wxMini 使用 OpenID 。
+}
+// RegisterReq 注册输入， API 根据登录方式补充授权类型与授权键。
+message RegisterReq {
+  string mobile = 1; // 手机号，平台账号登录时使用。
+  string nickname = 2; // 用户昵称。
+  string password = 3; // 请求中的原始密码；不要输出到日志或响应。
+  string authKey = 4; // 平台唯一标识； system 使用手机号， wxMini 使用 OpenID 。
+  string authType = 5; // 登录平台类型，例如 system 或 wxMini 。
+}
+// RegisterResp 注册成功后签发的登录信息。
+message RegisterResp {
+  string accessToken = 1; // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+  int64  accessExpire = 2; // 过期时刻的 Unix 秒时间戳，不是有效时长。
+  int64  refreshAfter = 3; // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+}
+
+// LoginReq 登录凭据，具体校验由 RPC 业务逻辑执行。
+message LoginReq {
+  string  authType = 1; // 登录平台类型，例如 system 或 wxMini 。
+  string authKey = 2; // 平台唯一标识； system 使用手机号， wxMini 使用 OpenID 。
+  string  password = 3; // 请求中的原始密码；不要输出到日志或响应。
+}
+// LoginResp 登录成功后签发的登录信息。
+message LoginResp {
+  string accessToken = 1; // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+  int64  accessExpire = 2; // 过期时刻的 Unix 秒时间戳，不是有效时长。
+  int64  refreshAfter = 3; // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+}
+
+// GetUserInfoReq 按本地用户主键查询用户。
+message GetUserInfoReq {
+  int64  id = 1; // 本地用户主键；在 UserAuth 中表示授权记录主键。
+}
+// GetUserInfoResp 用户查询结果。
+message GetUserInfoResp {
+   User user = 1; // 用户公开信息，不包含数据库密码字段。
+}
+
+// GetUserAuthByAuthKeyReq 按登录平台和平台标识查询授权。
+message GetUserAuthByAuthKeyReq {
+  string  authKey = 1; // 平台唯一标识； system 使用手机号， wxMini 使用 OpenID 。
+  string  authType = 2; // 登录平台类型，例如 system 或 wxMini 。
+}
+// GetUserAuthByAuthKeyResp 平台标识查询得到的授权关系。
+message GetUserAuthByAuthKeyResp {
+   UserAuth userAuth = 1; // 本地用户与平台身份的关联；查询不到时当前实现返回零值对象。
+}
+
+// GetUserAuthByUserIdReq 按本地用户和平台类型查询授权。
+message GetUserAuthByUserIdReq {
+  int64  userId = 1; // 关联的本地用户主键。
+  string  authType = 2; // 登录平台类型，例如 system 或 wxMini 。
+}
+// GetUserAuthyUserIdResp 用户主键查询得到的授权关系，保留原协议拼写。
+message GetUserAuthyUserIdResp {
+   UserAuth userAuth = 1; // 本地用户与平台身份的关联；查询不到时当前实现返回零值对象。
+}
+
+// GenerateTokenReq 签发目标用户；调用方负责事先验证身份。
+message GenerateTokenReq {
+  int64 userId = 1; // 关联的本地用户主键。
+}
+// GenerateTokenResp 签名令牌及两个绝对时间戳。
+message GenerateTokenResp {
+  string accessToken = 1; // 签名后的 JWT ，调用受保护接口时放入 Authorization 请求头。
+  int64  accessExpire = 2; // 过期时刻的 Unix 秒时间戳，不是有效时长。
+  int64  refreshAfter = 3; // 建议刷新时刻的 Unix 秒时间戳，当前没有自动刷新实现。
+}
+// usercenter 用户中心 RPC 协议，由 internal/server 转交各业务 logic 。
+service usercenter {
+  // TODO 平台账号登录，当前只接受 system 类型。
+  rpc login(LoginReq) returns(LoginResp);
+  // TODO 创建用户和授权关系，再签发 JWT 。
+  rpc register(RegisterReq) returns(RegisterResp);
+  // TODO 读取公开用户信息，不负责 HTTP JWT 校验。
+  rpc getUserInfo(GetUserInfoReq) returns(GetUserInfoResp);
+  // TODO 微信授权入口据此判断是否已关联本地用户。
+  rpc getUserAuthByAuthKey(GetUserAuthByAuthKeyReq) returns(GetUserAuthByAuthKeyResp);
+  // TODO 供其他业务按用户查询指定平台的身份。
+  rpc getUserAuthByUserId(GetUserAuthByUserIdReq) returns(GetUserAuthyUserIdResp);
+  // TODO 为已确认身份的用户签发令牌，不重复校验密码。
+  rpc generateToken(GenerateTokenReq) returns(GenerateTokenResp);
+}

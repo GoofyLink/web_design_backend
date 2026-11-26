@@ -1,0 +1,55 @@
+# idea
+.idea
+.idea/
+*.iml
+.DS_Store
+**/.DS_Store
+
+#deploy data
+
+data/*
+!data/.gitkeep
+
+# gitlab ci
+.cache
+
+#vscode
+.vscode
+.vscode/
+
+# Build outputs and runtime artifacts
+/dist/
+/bin/
+*.exe
+*.dll
+*.test
+*.out
+*.prof
+*.log
+coverage/
+logs/
+tmp/
+node_modules/
+playwright-report/
+test-results/
+Thumbs.db
+
+# Local configuration and credentials; keep safe examples
+.env
+.env.*
+!.env.example
+*.local.yaml
+*.local.yml
+/app/**/etc/*.yaml
+!/app/**/etc/*.example.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local verification artifacts and upstream automation
+/*-preview.png
+/*-debug.png
+/*-test.png
+/.github/workflows/
+

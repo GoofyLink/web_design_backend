@@ -1,0 +1,36 @@
+Name: design-api
+Host: 127.0.0.1
+Port: 8888
+Mode: dev
+Timeout: 60000
+MaxBytes: 22020096
+Log:
+  ServiceName: design-api
+  Mode: console
+  Level: info
+# Set these environment variables before running the binary. No default passwords.
+MySQLDSN: ${DESIGN_MYSQL_DSN}
+JWTSecret: ${DESIGN_JWT_SECRET}
+StorageDir: ./data/design-storage
+AllowedOrigins:
+  - http://localhost:5173
+  - http://localhost:5666
+CookieSecure: false
+AccessMinutes: 15
+RefreshDays: 7
+# Disable request-body logging: login and document bodies contain private data.
+Middlewares:
+  Log: false
+
+# Per-account file + design document quota (200 MiB); trash keeps quota until purged.
+StorageQuotaBytes: 209715200
+TrashDays: 30
+
+# Optional compiled Vue directories. Admin build base must be /admin/.
+SiteDir: ""
+AdminDir: ""
+# Keep false unless using a trusted internal HTTP/private-network provider.
+AllowPrivateProviders: false
+
+# 公司内部账号由管理员创建，默认禁止前台注册
+AllowPublicRegistration: false

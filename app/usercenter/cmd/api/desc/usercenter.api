@@ -1,0 +1,50 @@
+// @Title usercenter.api
+// @Description 定义用户中心路由、分组和 JWT 鉴权边界。
+// @Author Codex ，仅补充教学注释。
+// @Update Codex 2026-10-16 ，仅补充注释。
+syntax = "v1"
+
+info(
+	title: "用户中心服务"
+	desc: "用户中心服务"
+	version: "v1"
+)
+
+import (
+	"user/user.api"
+)
+
+// TODO 接口定义生成 routes.go ；前缀与相对路径组合为完整 HTTP 地址。
+// TODO 注册与手机号登录是公开接口，分别进入 RegisterHandler 和 LoginHandler 。
+@server(
+	prefix: usercenter/v1
+	group: user
+)
+service usercenter {
+	
+	@doc "register"
+	@handler register
+	post /user/register (RegisterReq) returns (RegisterResp)
+	
+	@doc "login"
+	@handler login
+	post /user/login (LoginReq) returns (LoginResp)
+}
+
+// TODO 此组先验证 JWT 再进入 handler ；包括当前的微信授权接口。
+// TODO detail 的用户主键来自 jwtUserId 声明，不由请求体指定。
+@server(
+	prefix: usercenter/v1
+	group: user
+	jwt: JwtAuth
+)
+service usercenter {
+	
+	@doc "get user info"
+	@handler detail
+	post /user/detail (UserInfoReq) returns (UserInfoResp)
+	
+	@doc "wechat mini auth"
+	@handler wxMiniAuth
+	post /user/wxMiniAuth (WXMiniAuthReq) returns (WXMiniAuthResp)
+}
