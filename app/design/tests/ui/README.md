@@ -19,6 +19,9 @@ node app/design/tests/ui/folder-asset-lifecycle.cjs
 node app/design/tests/ui/admin-session-lifecycle.cjs
 node app/design/tests/ui/presets-lifecycle.cjs
 node app/design/tests/ui/template-lifecycle.cjs
+node app/design/tests/ui/template-direct-edit.cjs
+node app/design/tests/ui/naive-studio-ui.cjs
+node app/design/tests/ui/psd-import.cjs
 node app/design/tests/ui/provider-config-lifecycle.cjs
 node app/design/tests/ui/account-operations.cjs
 node app/design/tests/ui/workspace-editor-lifecycle.cjs
@@ -26,6 +29,12 @@ node app/design/tests/ui/user-session-lifecycle.cjs
 node app/design/tests/ui/security-topic-create.cjs
 node app/design/tests/ui/user-create-quota.cjs
 ```
+
+`template-direct-edit.cjs` 验证模板卡片悬停/键盘聚焦编辑入口、封面预览、取消登录、登录后继续编辑、防重复点击、模板图层复制、原有文字编辑及保存刷新、原模板保持不变、下架错误与恢复后重试、触屏入口。仅在隔离库创建测试模板和账号，结束时下架测试模板。
+
+`naive-studio-ui.cjs` 验证 Naive UI 登录与比例筛选、账户弹出菜单和退出、上传图片进入编辑器并保存、作品复制和文件夹创建，以及工具页、账户页和任务页在 390px 宽度下没有横向溢出。移动端使用减少动态效果偏好。截图使用隔离库素材，不代表正式内容。2026-11-27 两个脚本均通过；前台 `vue-tsc` 检查和生产构建通过。
+
+编辑器完善验证（2026-11-27）：`naive-studio-ui.cjs` 增加图片亮度保存到真实 API、刷新恢复、重置调色，图片与文字组合/取消组合、撤销/重做，左侧素材区、选中元素工具栏以及编辑器 390px 无横向溢出检查。`template-direct-edit.cjs` 增加斜体、下划线、行距、字距的真实文档持久化断言。后端新增三种纯调色滤镜校验；非法滤镜、重复项、越界数值和资源字段由 canvas 单元测试覆盖。部署时必须重新启动包含新校验逻辑的 Go 后端，旧二进制会拒绝含调色滤镜的文档。
 
 第一个脚本验证前台提交、前后台失败重试、Go执行器、图片/字体传输、PNG/JPEG输出、ZIP解压与像素、额度和执行记录。第二个验证角色修改/删除保护/重新分配、管理员启停和专题下线删除。脚本会在隔离库创建带时间后缀的数据，重复运行不会覆盖原有用户。
 

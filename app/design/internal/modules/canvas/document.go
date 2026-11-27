@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"looklook/app/design/internal/platform"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -118,6 +119,21 @@ func Validate(c Content) ([]Reference, error) {
 				}
 			}
 			for k, x := range v {
+				if k == "shadow" {
+					if e := validateShadow(x); e != nil {
+						return e
+					}
+					continue
+				}
+				if k == "filters" {
+					if typ != "image" {
+						return platform.Fail(400, "滤镜仅用于图片对象")
+					}
+					if e := validateImageFilters(x); e != nil {
+						return e
+					}
+					continue
+				}
 				lower := strings.ToLower(k)
 				if lower == "__proto__" || lower == "constructor" || lower == "prototype" || lower == "source" || lower == "href" || strings.Contains(lower, "url") {
 					return platform.Fail(400, "文档包含不支持的资源属性")
@@ -213,6 +229,72 @@ func Validate(c Content) ([]Reference, error) {
 	}
 	return out, nil
 }
+
+// Only resource-free, bounded color adjustments are accepted here. Filter types
+// remain invalid as canvas objects or in arbitrary nested document properties.
+func validateImageFilters(value any) error {
+	items, ok := value.([]any)
+	if !ok || len(items) > 3 {
+		return platform.Fail(400, "图片最多支持三种调色滤镜")
+	}
+	seen := map[string]bool{}
+	for _, item := range items {
+		filter, ok := item.(map[string]any)
+		if !ok || len(filter) != 2 {
+			return platform.Fail(400, "滤镜参数无效")
+		}
+		typ, _ := filter["type"].(string)
+		key := map[string]string{"Brightness": "brightness", "Contrast": "contrast", "Saturation": "saturation"}[typ]
+		amount, numeric := filter[key].(float64)
+		if key == "" || seen[typ] || !numeric || amount < -1 || amount > 1 {
+			return platform.Fail(400, "不支持的滤镜或调色值超出范围")
+		}
+		seen[typ] = true
+	}
+	return nil
+}
 func AssetURL(id int64) string {
 	return fmt.Sprintf("/api/v1/assets/%s/content", strconv.FormatInt(id, 10))
+}
+
+var shadowColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// Shadow is an object effect, never a top-level canvas object or remote resource.
+func validateShadow(value any) error {
+	if value == nil {
+		return nil
+	}
+	v, ok := value.(map[string]any)
+	if !ok {
+		return platform.Fail(400, "阴影参数无效")
+	}
+	for k, raw := range v {
+		switch k {
+		case "type":
+			if raw != "shadow" {
+				return platform.Fail(400, "阴影类型无效")
+			}
+		case "color":
+			color, ok := raw.(string)
+			if !ok || !shadowColor.MatchString(color) {
+				return platform.Fail(400, "阴影颜色须为六位十六进制颜色")
+			}
+		case "blur", "offsetX", "offsetY":
+			n, ok := raw.(float64)
+			min := -200.0
+			if k == "blur" {
+				min = 0
+			}
+			if !ok || n < min || n > 200 {
+				return platform.Fail(400, "阴影参数超出范围")
+			}
+		case "affectStroke", "nonScaling":
+			if _, ok := raw.(bool); !ok {
+				return platform.Fail(400, "阴影开关无效")
+			}
+		default:
+			return platform.Fail(400, "不支持的阴影参数")
+		}
+	}
+	return nil
 }
